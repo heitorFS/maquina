@@ -9,8 +9,8 @@
 #define password "sae668128"
 
 #define homePage "<script>\
-  let buttonClicked = async () => {\
-    await fetch(`/buttonClicked`).then(() => {console.log('triggered')});\
+  const buttonClicked = async () => {\
+    await fetch('/buttonClicked');\
   }\
 </script>\
 <html>\
@@ -22,6 +22,23 @@
 </html>"
 
 #define configPage "<script>\
+  async function getData() {\
+    const res = await fetch('/configRead');\
+    const json = await res.json();\
+    \
+    document.getElementById('capacitorTime').value = json.capacitorTime;\
+    if (json.nominalVoltage === 242) {\
+      document.getElementById('nominalVoltage').children[0].selected = true;\
+      document.getElementById('nominalVoltage').children[1].selected = false;\
+    }\
+    else {\
+      document.getElementById('nominalVoltage').children[0].selected = false;\
+      document.getElementById('nominalVoltage').children[1].selected = true;\
+    }\
+    document.getElementById('nominalCurrent').value = json.nominalCurrent;\
+  }\
+  \
+  getData();\
 </script>\
 <html>\
   <head><meta charset=\"UTF-8\"></head>\
@@ -29,10 +46,33 @@
     <form action=\"/configSubmit\">\
       <div>\
         <label for=\"capacitorTime\">Tempo do capacitor</label>\
-        <input type=\"number\" id=\"capacitorTime\" name=\"capacitorTime\" min=\"2\" max=\"6\" />\
+        <input type=\"number\" id=\"capacitorTime\" name=\"capacitorTime\" min=\"2\" max=\"6\" value=\"capval\" />\
+      </div>\
+      <div>\
+        <label for=\"capacitorTime\">Tensão nominal</label>\
+        <select id=\"nominalVoltage\" name=\"nominalVoltage\">\
+          <option value=\"242\">242V</option>\
+          <option value=\"380\">380V</option>\
+        </select>\
+      </div>\
+      <div>\
+        <label for=\"capacitorTime\">Corrente nominal</label>\
+        <input type=\"number\" id=\"nominalCurrent\" name=\"nominalCurrent\" min=\"3\" max=\"10\" value=\"nomCur\" />\
       </div>\
       <input type=\"submit\" value=\"Salvar\" />\
     </form>\
+  </body>\
+</html>"
+
+#define submitPage "<script>\
+  setTimeout(() => {\
+    window.location.replace('/');\
+  }, 3000);\
+</script>\
+<html>\
+  <head><meta charset=\"UTF-8\"></head>\
+  <body>\
+    Configurações atualizadas com sucesso!<br>Espere para ser redirecionado\
   </body>\
 </html>"
 
@@ -41,7 +81,10 @@
 ESP8266WebServer server(80);
 bool pump_state = false;
 unsigned long triggerMillis = 0;
-unsigned relayPeriod = 3000;
+
+unsigned relayPeriod = 3000,
+  nomVoltage = 242,
+  nomCurrent = 8;
 
 // Protótipos
 
@@ -49,8 +92,8 @@ void handleHomePage(void);
 void handleNotFound(void);
 void handleConfigPage(void);
 void handleButtonChange(void);
-void handleConfigSubmit(void);
 void handleConfigRead(void);
+void handleConfigSubmit(void);
 
 void (*MaquinaStep)(void);
 void StepInicial(void);
@@ -153,15 +196,16 @@ void handleButtonChange(void)
   server.send(200, "text/html", "done");
 }
 
-void handleConfigSubmit(void)
+void handleConfigRead(void)
 {
-  String capTime = server.arg("capacitorTime");
-  relayPeriod = capTime.toInt() * 1000;
-  
-  server.send(200, "text/html", "done");
+  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod / 1000) + ", \"nominalVoltage\": " + String(nomVoltage) + ", \"nominalCurrent\": " + String(nomCurrent) + "}");
 }
 
-void handleConfigRead(void)
-{  
-  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod) + "}");
+void handleConfigSubmit(void)
+{
+  relayPeriod = server.arg("capacitorTime").toInt() * 1000;
+  nomVoltage = server.arg("nominalVoltage").toInt();
+  nomCurrent = server.arg("nominalCurrent").toInt();
+  
+  server.send(200, "text/html", submitPage);
 }
