@@ -27,7 +27,7 @@
     const json = await res.json();\
     \
     document.getElementById('capacitorTime').value = json.capacitorTime;\
-    if (json.nominalVoltage === 242) {\
+    if (json.nominalVoltage === 220) {\
       document.getElementById('nominalVoltage').children[0].selected = true;\
       document.getElementById('nominalVoltage').children[1].selected = false;\
     }\
@@ -51,7 +51,7 @@
       <div>\
         <label for=\"capacitorTime\">Tensão nominal</label>\
         <select id=\"nominalVoltage\" name=\"nominalVoltage\">\
-          <option value=\"242\">242V</option>\
+          <option value=\"220\">220V</option>\
           <option value=\"380\">380V</option>\
         </select>\
       </div>\
@@ -83,7 +83,7 @@ bool pump_state = false;
 unsigned long triggerMillis = 0;
 
 unsigned relayPeriod = 3000,
-  nomVoltage = 242,
+  nomVoltage = 220,
   nomCurrent = 8;
 
 // Protótipos
