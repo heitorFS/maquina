@@ -27,8 +27,10 @@
   <head><meta charset=\"UTF-8\"></head>\
   <body>\
     <form action=\"/configSubmit\">\
-      <label for=\"capacitorTime\">Tempo do capacitor</label>\
-      <input type=\"number\" id=\"capacitorTime\" name=\"capacitorTime\" />\
+      <div>\
+        <label for=\"capacitorTime\">Tempo do capacitor</label>\
+        <input type=\"number\" id=\"capacitorTime\" name=\"capacitorTime\" min=\"2\" max=\"6\" />\
+      </div>\
       <input type=\"submit\" value=\"Salvar\" />\
     </form>\
   </body>\
@@ -154,7 +156,7 @@ void handleButtonChange(void)
 void handleConfigSubmit(void)
 {
   String capTime = server.arg("capacitorTime");
-  relayPeriod = capTime.toInt();
+  relayPeriod = capTime.toInt() * 1000;
   
   server.send(200, "text/html", "done");
 }
