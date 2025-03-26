@@ -17,7 +17,7 @@
     }\
     else {\
       button.textContent = 'LIGAR';\
-      button.style.backgroundColor = '#43cb75';\
+      button.style.backgroundColor = '#ffcb0f';\
     }\
   };\
   \
@@ -39,8 +39,8 @@
     width: 80%;\
     font-size: 8vw;\
     font-weight: bold;\
-    background-color: #43cb75;\
-    color: #FFF;\
+    background-color: #ffcb0f;\
+    color: #000;\
     border: none;\
     border-radius: 20px;\
     transition: 200ms;\
@@ -62,6 +62,20 @@
     font-size: 5vw;\
     font-family: sans-serif;\
   }\
+  .aen {\
+    display: flex;\
+    align-items: center;\
+    justify-content: center;\
+    width: 100%;\
+    height: 10vh;\
+    position: absolute;\
+    bottom: 0;\
+    background-color: #ffcb0f;\
+    color: #000;\
+    font-weight: 700;\
+    font-family: sans-serif;\
+    font-size: 5vw;\
+  }\
 </style>\
 <html>\
   <head><meta charset=\"UTF-8\" /></head>\
@@ -74,10 +88,27 @@
       <p>Tensão: </p>\
       <p>Corrente: </p>\
     </div>\
+    <div class=\"aen\">AEnSolar</div>\
   </body>\
 </html>"
 
 #define configPage "<script>\
+  function selectChanged() {\
+    let val = document.getElementById('nominalVoltage').value, min = document.getElementById('minVoltage'), max = document.getElementById('maxVoltage');\
+    if (val === '220') {\
+      min.min = 180;\
+      min.max = 200;\
+      max.min = 240;\
+      max.max = 260;\
+    }\
+    else {\
+      min.min = 342;\
+      min.max = 360;\
+      max.min = 400;\
+      max.max = 418;\
+    }\
+  }\
+  \
   async function getData() {\
     const res = await fetch('/configRead');\
     const json = await res.json();\
@@ -91,6 +122,9 @@
       document.getElementById('nominalVoltage').children[0].selected = false;\
       document.getElementById('nominalVoltage').children[1].selected = true;\
     }\
+    selectChanged();\
+    document.getElementById('minVoltage').value = json.minVoltage;\
+    document.getElementById('maxVoltage').value = json.maxVoltage;\
     document.getElementById('nominalCurrent').value = json.nominalCurrent;\
   }\
   \
@@ -123,13 +157,19 @@
     border-bottom: solid 3px #FFF;\
   }\
   \
+  option {\
+    color: #000;\
+    font-size: 3vw;\
+  }\
+  \
   input[type=\"submit\"] {\
     position: absolute;\
     bottom: 15vw;\
     right: 15vw;\
     padding: 20px;\
     border: none;\
-    background-color: #43cb75;\
+    color: #000;\
+    background-color: #ffcb0f;\
     width: 30vw;\
   }\
 </style>\
@@ -143,10 +183,18 @@
       </div>\
       <div>\
         <label for=\"capacitorTime\">Tensão nominal</label>\
-        <select id=\"nominalVoltage\" name=\"nominalVoltage\">\
+        <select id=\"nominalVoltage\" onchange=\"selectChanged()\" name=\"nominalVoltage\">\
           <option value=\"220\">220V</option>\
           <option value=\"380\">380V</option>\
         </select>\
+      </div>\
+      <div>\
+        <label for=\"minVoltage\">Tensão mínima</label>\
+        <input type=\"number\" id=\"minVoltage\" name=\"minVoltage\" min=\"180\" max=\"200\" />\
+      </div>\
+      <div>\
+        <label for=\"minVoltage\">Tensão máxima</label>\
+        <input type=\"number\" id=\"maxVoltage\" name=\"maxVoltage\" min=\"240\" max=\"260\" />\
       </div>\
       <div>\
         <label for=\"capacitorTime\">Corrente nominal</label>\
@@ -172,6 +220,7 @@
   \
   div {\
     font-size: 5vw;\
+    font-family: sans-serif;\
   }\
 </style>\
 <html>\
@@ -189,6 +238,8 @@ unsigned long triggerMillis = 0;
 
 unsigned relayPeriod = 3000,
   nomVoltage = 220,
+  minVoltage = 180,
+  maxVoltage = 260,
   nomCurrent = 8;
 
 // Protótipos
@@ -303,13 +354,15 @@ void handleButtonChange(void)
 
 void handleConfigRead(void)
 {
-  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod / 1000) + ", \"nominalVoltage\": " + String(nomVoltage) + ", \"nominalCurrent\": " + String(nomCurrent) + "}");
+  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod / 1000) + ", \"nominalVoltage\": " + String(nomVoltage) + ", \"minVoltage\": " + String(minVoltage) + ", \"maxVoltage\": " + String(maxVoltage) + ", \"nominalCurrent\": " + String(nomCurrent) + "}");
 }
 
 void handleConfigSubmit(void)
 {
   relayPeriod = server.arg("capacitorTime").toInt() * 1000;
   nomVoltage = server.arg("nominalVoltage").toInt();
+  minVoltage = server.arg("minVoltage").toInt();
+  maxVoltage = server.arg("maxVoltage").toInt();
   nomCurrent = server.arg("nominalCurrent").toInt();
   
   server.send(200, "text/html", submitPage);
