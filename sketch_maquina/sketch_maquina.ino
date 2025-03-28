@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <EEPROM.h>
 
 #define RELAY_0 16
 #define RELAY_1 5
@@ -268,17 +269,13 @@ void setup()
   digitalWrite(RELAY_1, LOW);
 
   MaquinaStep = StepInicial;
+  
+  IPAddress local_IP(192,168,4,1);
+  IPAddress gateway(192,168,4,6);
+  IPAddress subnet(255,255,255,0);
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.print(".");
-    delay(400);
-  }
-  Serial.print("IP obtido: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.softAPConfig(local_IP, gateway, subnet) ? "Ready" : "Failed!");
+  Serial.println(WiFi.softAP("SmartControl", "12345678") ? "Ready" : "Failed!");
 
   server.on("/", handleHomePage);
   server.on("/config", handleConfigPage);
