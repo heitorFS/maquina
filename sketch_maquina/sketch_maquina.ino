@@ -6,8 +6,8 @@
 #define RELAY_0 16
 #define RELAY_1 5
 
-#define ssid "SmartHome"
-#define password "sae668128"
+#define ssid "SmartControl"
+#define password "12345678"
 
 #define homePage "<script>\
   const switchButtonAppearance = () => {\
@@ -96,7 +96,7 @@
 #define configPage "<script>\
   function selectChanged() {\
     let val = document.getElementById('nominalVoltage').value, min = document.getElementById('minVoltage'), max = document.getElementById('maxVoltage');\
-    if (val === '220') {\
+    if (val === '0') {\
       min.min = 180;\
       min.max = 200;\
       max.min = 240;\
@@ -115,7 +115,7 @@
     const json = await res.json();\
     \
     document.getElementById('capacitorTime').value = json.capacitorTime;\
-    if (json.nominalVoltage === 220) {\
+    if (json.nominalVoltage === 0) {\
       document.getElementById('nominalVoltage').children[0].selected = true;\
       document.getElementById('nominalVoltage').children[1].selected = false;\
     }\
@@ -185,8 +185,8 @@
       <div>\
         <label for=\"capacitorTime\">Tensão nominal</label>\
         <select id=\"nominalVoltage\" onchange=\"selectChanged()\" name=\"nominalVoltage\">\
-          <option value=\"220\">220V</option>\
-          <option value=\"380\">380V</option>\
+          <option value=\"0\">220V</option>\
+          <option value=\"1\">380V</option>\
         </select>\
       </div>\
       <div>\
@@ -231,19 +231,36 @@
   </body>\
 </html>"
 
+enum AddressTable
+{
+  RELAY_PERIOD = 0,
+  NOM_VOLTAGE = 1,
+  MIN_VOLTAGE = 2,
+  MAX_VOLTAGE = 4,
+  NOM_CURRENT = 6
+};
+
+enum Voltages
+{
+  V220,
+  V380
+};
+
 // Variáveis
 
 ESP8266WebServer server(80);
 bool pump_state = false;
 unsigned long triggerMillis = 0;
+unsigned short minVoltage = 180,
+               maxVoltage = 260;
 
-unsigned relayPeriod = 3000,
-  nomVoltage = 220,
-  minVoltage = 180,
-  maxVoltage = 260,
-  nomCurrent = 8;
+uint8_t relayPeriod = 3,
+        nomVoltage = Voltages::V220,
+        nomCurrent = 8;
 
 // Protótipos
+
+void eepromConfig(void);
 
 void handleHomePage(void);
 void handleNotFound(void);
@@ -261,6 +278,8 @@ void StepUm(void);
 void setup()
 {
   Serial.begin(9600);
+  Serial.println("a");
+  eepromConfig();
 
   pinMode(RELAY_0, OUTPUT);
   pinMode(RELAY_1, OUTPUT);
@@ -269,13 +288,13 @@ void setup()
   digitalWrite(RELAY_1, LOW);
 
   MaquinaStep = StepInicial;
-  
+
   IPAddress local_IP(192,168,4,1);
   IPAddress gateway(192,168,4,6);
   IPAddress subnet(255,255,255,0);
 
-  Serial.println(WiFi.softAPConfig(local_IP, gateway, subnet) ? "Ready" : "Failed!");
-  Serial.println(WiFi.softAP("SmartControl", "12345678") ? "Ready" : "Failed!");
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_IP, gateway, subnet);
 
   server.on("/", handleHomePage);
   server.on("/config", handleConfigPage);
@@ -292,11 +311,46 @@ void loop()
   //(*MaquinaStep)();
   server.handleClient();
 
-  if (triggerMillis > 0 && pump_state && millis() - triggerMillis >= relayPeriod)
+  if (triggerMillis > 0 && pump_state && millis() - triggerMillis >= relayPeriod * 1000)
   {
     digitalWrite(RELAY_1, LOW);
     triggerMillis = 0;
   }
+}
+
+// Funções EEPROM
+
+void eepromConfig(void)
+{
+  for (int i = 0; i < 4; i++)
+  {
+    digitalWrite(RELAY_0, !digitalRead(RELAY_0));
+    delay(200);
+  }
+  EEPROM.begin(7);
+  for (int i = 0; i < relayPeriod; i++)
+  {
+    digitalWrite(RELAY_0, !digitalRead(RELAY_0));
+    delay(100);
+  }
+  uint8_t relay;
+  EEPROM.get(AddressTable::RELAY_PERIOD, relay);
+  if (relay < 2 || relay > 6)
+  {
+    EEPROM.put(AddressTable::RELAY_PERIOD, relayPeriod);
+    EEPROM.put(AddressTable::NOM_VOLTAGE, nomVoltage);
+    EEPROM.put(AddressTable::MIN_VOLTAGE, minVoltage);
+    EEPROM.put(AddressTable::MAX_VOLTAGE, maxVoltage);
+    EEPROM.put(AddressTable::NOM_CURRENT, nomCurrent);
+
+    EEPROM.commit();
+  }
+  EEPROM.get(AddressTable::RELAY_PERIOD, relayPeriod);
+  EEPROM.get(AddressTable::NOM_VOLTAGE, nomVoltage);
+  EEPROM.get(AddressTable::MIN_VOLTAGE, minVoltage);
+  EEPROM.get(AddressTable::MAX_VOLTAGE, maxVoltage);
+  EEPROM.get(AddressTable::NOM_CURRENT, nomCurrent);
+  EEPROM.end();
 }
 
 // Funções Máquina de Estado
@@ -351,16 +405,28 @@ void handleButtonChange(void)
 
 void handleConfigRead(void)
 {
-  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod / 1000) + ", \"nominalVoltage\": " + String(nomVoltage) + ", \"minVoltage\": " + String(minVoltage) + ", \"maxVoltage\": " + String(maxVoltage) + ", \"nominalCurrent\": " + String(nomCurrent) + "}");
+  server.send(200, "application/json", "{\"capacitorTime\": " + String(relayPeriod) + ", \"nominalVoltage\": " + String(nomVoltage) + ", \"minVoltage\": " + String(minVoltage) + ", \"maxVoltage\": " + String(maxVoltage) + ", \"nominalCurrent\": " + String(nomCurrent) + "}");
 }
 
 void handleConfigSubmit(void)
-{
-  relayPeriod = server.arg("capacitorTime").toInt() * 1000;
-  nomVoltage = server.arg("nominalVoltage").toInt();
-  minVoltage = server.arg("minVoltage").toInt();
-  maxVoltage = server.arg("maxVoltage").toInt();
-  nomCurrent = server.arg("nominalCurrent").toInt();
+{  
+  relayPeriod = (uint8_t) server.arg("capacitorTime").toInt();
+  nomVoltage = (uint8_t) server.arg("nominalVoltage").toInt();
+  minVoltage = (short) server.arg("minVoltage").toInt();
+  maxVoltage = (short) server.arg("maxVoltage").toInt();
+  nomCurrent = (uint8_t) server.arg("nominalCurrent").toInt();
   
+  EEPROM.begin(7);
+  
+  EEPROM.put(AddressTable::RELAY_PERIOD, relayPeriod);
+  EEPROM.put(AddressTable::NOM_VOLTAGE, nomVoltage);
+  EEPROM.put(AddressTable::MIN_VOLTAGE, minVoltage);
+  EEPROM.put(AddressTable::MAX_VOLTAGE, maxVoltage);
+  EEPROM.put(AddressTable::NOM_CURRENT, nomCurrent);
+  
+  EEPROM.commit();
+  Serial.println(EEPROM.read(AddressTable::RELAY_PERIOD));
+  Serial.println(EEPROM.read(AddressTable::NOM_VOLTAGE));
+  Serial.println(EEPROM.read(AddressTable::NOM_CURRENT));
   server.send(200, "text/html", submitPage);
 }
