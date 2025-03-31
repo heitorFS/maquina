@@ -99,14 +99,18 @@
     if (val === '0') {\
       min.min = 180;\
       min.max = 200;\
+      min.value = 180;\
       max.min = 240;\
       max.max = 260;\
+      max.value = 260;\
     }\
     else {\
       min.min = 342;\
       min.max = 360;\
+      min.value = 342;\
       max.min = 400;\
       max.max = 418;\
+      max.value = 418;\
     }\
   }\
   \
